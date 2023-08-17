@@ -3,7 +3,6 @@ module vdns
 import net
 import encoding.binary
 import rand
-import os  // write file
 
 pub enum Type as u16 {
 	a      =   1  // RFC1035: a host address
@@ -135,25 +134,17 @@ fn str2dns(s string) []u8 {
 pub fn query(q Query) !Response {
 	mut buf := []u8{len: 512}
 
-	if 1234 == 1 {  // @TODO: Conditional debug code
-		buf = os.read_file_array[u8]('/tmp/dns_debug')
-		return parse_response(mut &buf, 512)
+	mut conn := net.dial_udp(q.resolver) or { panic('could not net.dial_udp: ${err}') }
+	defer {
+		conn.close() or {}
 	}
-	else {
-		mut conn := net.dial_udp(q.resolver) or { panic('could not net.dial_udp: ${err}') }
-		defer {
-			conn.close() or {}
-		}
 
-		conn.write(query_to_buf(q)) or { panic('could not send data to UDP')}
+	conn.write(query_to_buf(q)) or { panic('could not send data to UDP')}
 
-		//mut buf := []u8{len: 512}
-		res, _ := conn.read(mut buf) or { return error('Cannot read from buffer') }
+	//mut buf := []u8{len: 512}
+	res, _ := conn.read(mut buf) or { return error('Cannot read from buffer') }
 
-		//os.write_file_array('/tmp/dns_debug', buf) or { return error('cannot write debug output')}
-
-		return parse_response(mut &buf, res)
-	}
+	return parse_response(mut &buf, res)
 
 }
 
