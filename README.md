@@ -1,7 +1,6 @@
-# DNS
+# VDNS
 
 This is a DNS library written in V.
-
 
 ## Features
 
@@ -39,10 +38,11 @@ fn main() {
 	result = vdns.query(vdns.Query{ domain: 'gmail.com', @type: vdns.Type.mx, resolver: resolver }) or { panic('Failed query') }
 	for answer in result.answers {
 		println("${answer.name} ${answer.class} ${answer.ttl} ${answer.@type} ${answer.record}")
-	}}
+	}
+}
 ```
 
-Please do NOT use in production.
+This library is under development: **Do NOT use in production!**
 
 ## License
 
