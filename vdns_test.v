@@ -1,5 +1,7 @@
-fn vdns_test() {
-	resolver := '192.168.0.1:53'
+import vdns
+
+fn test_vdns() {
+	resolver := '192.168.178.1:53'
 
 	mut result := vdns.Response{}
 
