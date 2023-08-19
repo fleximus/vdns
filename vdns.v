@@ -269,6 +269,31 @@ fn int_to_type(i int) Type {
 	}
 }
 
+pub fn shorten_ipv6(input string) string {
+	mut groups := input.split(':')
+
+	for mut group in groups {
+		group = group.trim_left('0')
+		if group == '' {
+			group = '0'
+		}
+	}
+
+	mut output := groups.join(':')
+	mut search := '0:0:0:0:0:0:0'
+	len := output.len
+
+	for _ in 1..7 {
+		output = output.replace(search, '')
+		if output.len < len {
+			break
+		}
+		search = search.trim_string_right(':0')
+	}
+
+	return output.to_lower()
+}
+
 fn parse_response(mut buf []u8, bytes int) Response {
 	mut answers := []Answer{}
 
@@ -323,8 +348,8 @@ fn parse_response(mut buf []u8, bytes int) Response {
 				result << "$item"
 			}
 
-			ip := result.join('.')
-			record = ip
+			ipv4 := result.join('.')
+			record = ipv4
 		}
 
 		else if a_type == Type.aaaa {
@@ -337,8 +362,8 @@ fn parse_response(mut buf []u8, bytes int) Response {
 				}
 			}
 
-			ip := result.join('')
-			record = ip  // @TODO: Shorten IPv6 address
+			ipv6 := result.join('')
+			record = shorten_ipv6(ipv6)
 		}
 
 		else if a_type == Type.caa {

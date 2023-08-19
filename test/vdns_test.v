@@ -30,6 +30,12 @@ fn test_type_to_str() {
 	assert(vdns.type_to_str(vdns.Type.txt) == 'txt')
 }
 
+fn test_shorten_ipv6() {
+	assert(vdns.shorten_ipv6('2a01:04f9:002b:1a1c:5457:76dc:a4cf:0180') == '2a01:4f9:2b:1a1c:5457:76dc:a4cf:180')
+	assert(vdns.shorten_ipv6('2041:0000:140f:0000:0000:0000:875b:131b') == '2041:0:140f::875b:131b')
+	
+}
+
 fn test_vdns() {
 	resolver := '1.1.1.1:53'
 	mut result := vdns.Response{}
@@ -40,7 +46,7 @@ fn test_vdns() {
 
 	// Test AAAA record
 	result = vdns.query(vdns.Query{ domain: 'fleximus.org', @type: vdns.Type.aaaa, resolver: resolver }) !
-	assert(result.answers[0].record == '2a01:04f9:002b:1a1c:5457:76dc:a4cf:0180')
+	assert(result.answers[0].record == '2a01:4f9:2b:1a1c:5457:76dc:a4cf:180')
 
 	// Test CAA record
 	result = vdns.query(vdns.Query{ domain: 'fleximus.org', @type: vdns.Type.caa, resolver: resolver }) !
