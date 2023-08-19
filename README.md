@@ -27,13 +27,13 @@ v install --git https://github.com/fleximus/vdns
 
 ## Usage
 
-To use `vdns` to run queries, you need to know and use the resolver's IP address, here in our example we make use of `192.168.178.1:53` that also includes the port `udp/53`.
+To use `vdns` in order to run queries, you need to specify the resolver's IP address, here in our example we make use of Cloudflares public 1.1.1.1 resolver.
 
 ```v
 import fleximus.vdns
 
 fn main() {
-	resolver := '192.168.178.1:53'
+	resolver := '1.1.1.1:53'
 
 	result := vdns.query(vdns.Query{ domain: 'gmail.com', @type: vdns.Type.mx, resolver: resolver }) or { panic('Failed query') }
 	for answer in result.answers {
