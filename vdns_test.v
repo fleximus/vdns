@@ -14,7 +14,7 @@ fn test_str_to_type() {
 	assert str_to_type('spf') == Type.spf
 	assert str_to_type('txt') == Type.txt
 }
-/*
+
 fn test_type_to_str() {
 	assert vdns.type_to_str(vdns.Type.a) == 'a'
 	assert vdns.type_to_str(vdns.Type.aaaa) == 'aaaa'
@@ -60,4 +60,3 @@ fn test_vdns() {
 	result = vdns.query(vdns.Query{ domain: 'fleximus.org', @type: vdns.Type.txt, resolver: resolver }) !
 	assert result.answers[0].record == 'v=spf1 mx -all'
 }
-*/
