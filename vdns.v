@@ -2,6 +2,7 @@ module vdns
 
 import net
 import encoding.binary
+import encoding.base64
 import rand
 
 pub enum Type as u16 {
@@ -13,7 +14,7 @@ pub enum Type as u16 {
 	mx     =  15  // RFC1035: mail exchange
 	txt    =  16  // RFC1035: text strings
 	aaaa   =  28
-	dnskey =  48
+	dnskey =  48  // RFC4034: Resource Records for the DNS Security Extensions
 	tlsa   =  52  // RFC6698: The DNS-Based Authentication of Named Entities (DANE)
 	              //          Transport Layer Security (TLS) Protocol: TLSA
 	spf    =  99
@@ -217,39 +218,41 @@ fn read_domain(buf []u8, start int) (string, int) {
 
 fn type_to_str(t Type) string {
 	return match t {
-		.a     { 'a' }
-		.aaaa  { 'aaaa' }
-		.axfr  { 'axfr' }
-		.caa   { 'caa' }
-		.cname { 'cname' }
-		.ixfr  { 'ixfr' }
-		.mx    { 'mx' }
-		.ns    { 'ns' }
-		.ptr   { 'ptr' }
-		.spf   { 'spf' }
-		.soa   { 'soa' }
-		.tlsa  { 'tlsa' }
-		.txt   { 'txt' }
-		else   { 'unknown(${int(t)})' }
+		.a      { 'a' }
+		.aaaa   { 'aaaa' }
+		.axfr   { 'axfr' }
+		.caa    { 'caa' }
+		.cname  { 'cname' }
+		.dnskey { 'dnskey' }
+		.ixfr   { 'ixfr' }
+		.mx     { 'mx' }
+		.ns     { 'ns' }
+		.ptr    { 'ptr' }
+		.spf    { 'spf' }
+		.soa    { 'soa' }
+		.tlsa   { 'tlsa' }
+		.txt    { 'txt' }
+		else    { 'unknown(${int(t)})' }
 	}
 }
 
 pub fn str_to_type(t string) Type {
 	return match t.to_lower() {
-		'a'     { .a }
-		'aaaa'  { .aaaa }
-		'axfr'  { .axfr }
-		'caa'   { .caa }
-		'cname' { .cname }
-		'ixfr'  { .ixfr }
-		'mx'    { .mx }
-		'ns'    { .ns }
-		'ptr'   { .ptr }
-		'spf'   { .spf }
-		'soa'   { .soa }
-		'tlsa'  { .tlsa }
-		'txt'   { .txt }
-		else    {
+		'a'      { .a }
+		'aaaa'   { .aaaa }
+		'axfr'   { .axfr }
+		'caa'    { .caa }
+		'cname'  { .cname }
+		'dnskey' { .dnskey }
+		'ixfr'   { .ixfr }
+		'mx'     { .mx }
+		'ns'     { .ns }
+		'ptr'    { .ptr }
+		'spf'    { .spf }
+		'soa'    { .soa }
+		'tlsa'   { .tlsa }
+		'txt'    { .txt }
+		else     {
 			eprintln('Unknown type(${t}), assuming a record')
 			return .a
 		}
@@ -259,14 +262,15 @@ pub fn str_to_type(t string) Type {
 
 fn int_to_type(i int) Type {
 	return match i {
-		int(Type.a)     { Type.a }
-		int(Type.aaaa)  { Type.aaaa }
-		int(Type.caa)   { Type.caa }
-		int(Type.cname) { Type.cname }
-		int(Type.mx)    { Type.mx }
-		int(Type.ptr)   { Type.ptr }
-		int(Type.tlsa)  { Type.tlsa }
-		int(Type.txt)   { Type.txt }
+		int(Type.a)      { Type.a }
+		int(Type.aaaa)   { Type.aaaa }
+		int(Type.caa)    { Type.caa }
+		int(Type.cname)  { Type.cname }
+		int(Type.dnskey) { Type.dnskey }
+		int(Type.mx)     { Type.mx }
+		int(Type.ptr)    { Type.ptr }
+		int(Type.tlsa)   { Type.tlsa }
+		int(Type.txt)    { Type.txt }
 		else {
 			panic('unknown type ${i}') // @TODO: Don't panic!
 		}
@@ -429,6 +433,15 @@ fn parse_response(mut buf []u8, bytes int) Response {
 					panic('txt_len_total > a_len (${txt_len_total})')
 				}
 			}
+		}
+
+		else if a_type == Type.dnskey {
+			flags := binary.big_endian_u16_at(buf, rel_pos + 12)
+			protocol := buf[rel_pos + 14]
+			algorithm := buf[rel_pos + 15]
+			pubkey_raw := read_fixed_len(buf, rel_pos + 16, a_len - 4)
+			pubkey_b64 := base64.encode(pubkey_raw.bytes())
+			record = "${flags} ${protocol} ${algorithm} ${pubkey_b64}"
 		}
 
 		else {

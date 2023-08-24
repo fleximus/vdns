@@ -10,6 +10,7 @@ Supported query types:
 - [ ] AXFR
 - [x] CAA
 - [x] CNAME
+- [x] DNSKEY
 - [x] PTR
 - [x] MX
 - [x] NS
