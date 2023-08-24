@@ -14,6 +14,7 @@ Supported query types:
 - [x] MX
 - [x] NS
 - [x] SOA
+- [x] TLSA
 - [x] TXT
 
 ## Installation

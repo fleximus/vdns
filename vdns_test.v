@@ -56,6 +56,13 @@ fn test_vdns() {
 	result = vdns.query(vdns.Query{ domain: 'fleximus.org', @type: vdns.Type.mx, resolver: resolver }) !
 	assert result.answers[0].record == '10 bouncer.mxsystem.de'
 
+	// Test TLSA record
+	result = vdns.query(vdns.Query{ domain: '_25._tcp.smtp.kernel-error.de', @type: vdns.Type.tlsa, resolver: resolver }) !
+    mut answers := result.answers.clone()
+    answers.sort(a.record < b.record)
+	assert answers[0].record == '3 1 1 16F49623BB0E75FAE4CD1C562BF20AE5DB8303AF7101856ED262E257 9CE03BCB'
+	assert answers[1].record == '3 1 1 1771FB07FD574EE9D9F571AB2985CC8F20F309B6BB642742482AAB7F 3D466D9D'
+
 	// Test TXT record
 	result = vdns.query(vdns.Query{ domain: 'fleximus.org', @type: vdns.Type.txt, resolver: resolver }) !
 	assert result.answers[0].record == 'v=spf1 mx -all'

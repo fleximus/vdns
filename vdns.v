@@ -14,7 +14,8 @@ pub enum Type as u16 {
 	txt    =  16  // RFC1035: text strings
 	aaaa   =  28
 	dnskey =  48
-	tlsa   =  52
+	tlsa   =  52  // RFC6698: The DNS-Based Authentication of Named Entities (DANE)
+	              //          Transport Layer Security (TLS) Protocol: TLSA
 	spf    =  99
 	tsig   = 250
 	ixfr   = 251
@@ -227,6 +228,7 @@ fn type_to_str(t Type) string {
 		.ptr   { 'ptr' }
 		.spf   { 'spf' }
 		.soa   { 'soa' }
+		.tlsa  { 'tlsa' }
 		.txt   { 'txt' }
 		else   { 'unknown(${int(t)})' }
 	}
@@ -245,6 +247,7 @@ pub fn str_to_type(t string) Type {
 		'ptr'   { .ptr }
 		'spf'   { .spf }
 		'soa'   { .soa }
+		'tlsa'  { .tlsa }
 		'txt'   { .txt }
 		else    {
 			eprintln('Unknown type(${t}), assuming a record')
@@ -262,6 +265,7 @@ fn int_to_type(i int) Type {
 		int(Type.cname) { Type.cname }
 		int(Type.mx)    { Type.mx }
 		int(Type.ptr)   { Type.ptr }
+		int(Type.tlsa)  { Type.tlsa }
 		int(Type.txt)   { Type.txt }
 		else {
 			panic('unknown type ${i}') // @TODO: Don't panic!
@@ -388,6 +392,21 @@ fn parse_response(mut buf []u8, bytes int) Response {
 		else if a_type == Type.ptr {
 			ptr, _ := read_domain(buf, rel_pos + 12)
 			record = ptr
+		}
+
+		else if a_type == Type.tlsa {
+			cert_usage := buf[rel_pos + 12]
+			selector := buf[rel_pos + 13]
+			matching_type := buf[rel_pos + 14]
+			tlsa_hex := read_fixed_len(buf, rel_pos + 15, 32)
+			record = "${cert_usage} ${selector} ${matching_type} "
+			for i in 0..32 {
+				if i == 28 {
+					record += ' '
+				}
+				record += tlsa_hex[i].hex().to_upper()
+			}
+
 		}
 
 		else if a_type == Type.txt {
