@@ -47,22 +47,22 @@ fn int_to_class(i int) Class {
 
 [flag]
 enum Flags as u16 {
-	response				//  0
-	b2						//  1
-	b3						//  2
-	b4						//  3
-	b5						//  4
-	b6						//  5
-	authorative_answer		//  6
-	truncated_response		//  7
-	recursion_desired		//  8
-	recursion_available		//  9
-	reserved				// 10
-	authentic_data			// 11
-	checking_disabled		// 12
-	b13						// 13
-	b14						// 14
-	b15						// 15
+	response             //  0
+	b2                   //  1
+	b3                   //  2
+	b4                   //  3
+	b5                   //  4
+	b6                   //  5
+	authorative_answer   //  6
+	truncated_response   //  7
+	recursion_desired    //  8
+	recursion_available  //  9
+	reserved             // 10
+	authentic_data       // 11
+	checking_disabled    // 12
+	b13                  // 13
+	b14                  // 14
+	b15                  // 15
 }
 
 pub struct Query {
