@@ -32,8 +32,7 @@ fn test_type_to_str() {
 
 fn test_shorten_ipv6() {
 	assert vdns.shorten_ipv6('2a01:04f9:002b:1a1c:5457:76dc:a4cf:0180') == '2a01:4f9:2b:1a1c:5457:76dc:a4cf:180'
-	assert vdns.shorten_ipv6('2041:0000:140f:0000:0000:0000:875b:131b') == '2041:0:140f::875b:131b'
-	
+	assert vdns.shorten_ipv6('2041:0000:140f:0000:0000:0000:875b:131b') == '2041:0:140f::875b:131b'	
 }
 
 fn test_vdns() {
@@ -58,8 +57,8 @@ fn test_vdns() {
 
 	// Test TLSA record
 	result = vdns.query(vdns.Query{ domain: '_25._tcp.smtp.kernel-error.de', @type: vdns.Type.tlsa, resolver: resolver }) !
-    mut answers := result.answers.clone()
-    answers.sort(a.record < b.record)
+	mut answers := result.answers.clone()
+	answers.sort(a.record < b.record)
 	assert answers[0].record == '3 1 1 16F49623BB0E75FAE4CD1C562BF20AE5DB8303AF7101856ED262E257 9CE03BCB'
 	assert answers[1].record == '3 1 1 1771FB07FD574EE9D9F571AB2985CC8F20F309B6BB642742482AAB7F 3D466D9D'
 
@@ -69,9 +68,9 @@ fn test_vdns() {
 
 	// Test DNSKEY record
 	result = vdns.query(vdns.Query{ domain: 'example.com', @type: vdns.Type.dnskey, resolver: resolver }) !
-    dnskey_answers := result.answers.clone()
-    answers.sort(a.record < b.record)
+	dnskey_answers := result.answers.clone()
+	answers.sort(a.record < b.record)
 	assert dnskey_answers[0].record == '256 3 13 5YeIQPdFZ+22gjmA90jfuq3kLTJ5BNazO8/BjdsTGX74l0Pc9Ei6JEKy/Q5hBb0k3e6X9JmlHloYxlQZYcAN7w=='
-    assert dnskey_answers[1].record == '256 3 13 /42vpFUdATVVhm6BjdSuvJHjAFJ/atP/xC318upEOo+D+p6I8LcvXKVTk8dMLoU5Z9e2RPwn4C4zOaK/jQ0FLg=='
+	assert dnskey_answers[1].record == '256 3 13 /42vpFUdATVVhm6BjdSuvJHjAFJ/atP/xC318upEOo+D+p6I8LcvXKVTk8dMLoU5Z9e2RPwn4C4zOaK/jQ0FLg=='
 	assert dnskey_answers[2].record == '257 3 13 kXKkvWU3vGYfTJGl3qBd4qhiWp5aRs7YtkCJxD2d+t7KXqwahww5IgJtxJT2yFItlggazyfXqJEVOmMJ3qT0tQ=='
 }

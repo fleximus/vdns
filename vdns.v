@@ -147,7 +147,6 @@ pub fn query(q Query) !Response {
 	res, _ := conn.read(mut buf) or { return error('Cannot read from buffer') }
 
 	return parse_response(mut &buf, res)
-
 }
 
 fn read_fixed_len(buf []u8, pos int, len int) (string) {
@@ -257,7 +256,6 @@ pub fn str_to_type(t string) Type {
 			return .a
 		}
 	}
-
 }
 
 fn int_to_type(i int) Type {
@@ -410,7 +408,6 @@ fn parse_response(mut buf []u8, bytes int) Response {
 				}
 				record += tlsa_hex[i].hex().to_upper()
 			}
-
 		}
 
 		else if a_type == Type.txt {
