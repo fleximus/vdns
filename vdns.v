@@ -22,7 +22,7 @@ pub enum Type as u16 {
 	ixfr   = 251
 	axfr   = 252
 	any    = 255
-	uri    = 256
+	uri    = 256  // RFC7553: The Uniform Resource Identifier (URI) DNS Resource Record
 	caa    = 257  // RFC6844: certificate authority authorization 
 }
 
@@ -231,6 +231,7 @@ fn type_to_str(t Type) string {
 		.soa    { 'soa' }
 		.tlsa   { 'tlsa' }
 		.txt    { 'txt' }
+		.uri    { 'uri' }
 		else    { 'unknown(${int(t)})' }
 	}
 }
@@ -251,6 +252,7 @@ pub fn str_to_type(t string) Type {
 		'soa'    { .soa }
 		'tlsa'   { .tlsa }
 		'txt'    { .txt }
+		'uri'    { .uri }
 		else     {
 			eprintln('Unknown type(${t}), assuming a record')
 			return .a
@@ -269,6 +271,7 @@ fn int_to_type(i int) Type {
 		int(Type.ptr)    { Type.ptr }
 		int(Type.tlsa)   { Type.tlsa }
 		int(Type.txt)    { Type.txt }
+		int(Type.uri)    { Type.uri }
 		else {
 			panic('unknown type ${i}') // @TODO: Don't panic!
 		}
@@ -440,6 +443,14 @@ fn parse_response(mut buf []u8, bytes int) Response {
 			pubkey_b64 := base64.encode(pubkey_raw.bytes())
 			record = "${flags} ${protocol} ${algorithm} ${pubkey_b64}"
 		}
+
+		else if a_type == Type.uri {
+			priority := binary.big_endian_u16_at(buf, rel_pos + 12)
+			weight := binary.big_endian_u16_at(buf, rel_pos + 14)
+			target := read_fixed_len(buf, rel_pos + 16, a_len - 4)
+			record = '${priority} ${weight} ${target}'
+		}
+
 
 		else {
 			print('No handler for type ')

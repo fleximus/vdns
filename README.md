@@ -17,6 +17,7 @@ Supported query types:
 - [x] SOA
 - [x] TLSA
 - [x] TXT
+- [x] URI
 
 ## Installation
 
