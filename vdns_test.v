@@ -6,13 +6,16 @@ fn test_str_to_type() {
 	assert str_to_type('axfr') == Type.axfr
 	assert str_to_type('caa') == Type.caa
 	assert str_to_type('cname') == Type.cname
+	assert str_to_type('dnskey') == Type.dnskey
 	assert str_to_type('ixfr') == Type.ixfr
 	assert str_to_type('mx') == Type.mx
 	assert str_to_type('ns') == Type.ns
 	assert str_to_type('ptr') == Type.ptr
 	assert str_to_type('soa') == Type.soa
 	assert str_to_type('spf') == Type.spf
+	assert str_to_type('tlsa') == Type.tlsa
 	assert str_to_type('txt') == Type.txt
+	assert str_to_type('uri') == Type.uri
 }
 
 fn test_type_to_str() {
@@ -21,13 +24,16 @@ fn test_type_to_str() {
 	assert vdns.type_to_str(vdns.Type.axfr) == 'axfr'
 	assert vdns.type_to_str(vdns.Type.caa) == 'caa'
 	assert vdns.type_to_str(vdns.Type.cname) == 'cname'
+	assert vdns.type_to_str(vdns.Type.dnskey) == 'dnskey'
 	assert vdns.type_to_str(vdns.Type.ixfr) == 'ixfr'
 	assert vdns.type_to_str(vdns.Type.mx) == 'mx'
 	assert vdns.type_to_str(vdns.Type.ns) == 'ns'
 	assert vdns.type_to_str(vdns.Type.ptr) == 'ptr'
 	assert vdns.type_to_str(vdns.Type.soa) == 'soa'
 	assert vdns.type_to_str(vdns.Type.spf) == 'spf'
+	assert vdns.type_to_str(vdns.Type.tlsa) == 'tlsa'
 	assert vdns.type_to_str(vdns.Type.txt) == 'txt'
+	assert vdns.type_to_str(vdns.Type.uri) == 'uri'
 }
 
 fn test_shorten_ipv6() {
