@@ -264,6 +264,7 @@ fn int_to_type(i int) Type {
 	return match i {
 		int(Type.a)      { Type.a }
 		int(Type.aaaa)   { Type.aaaa }
+		int(Type.axfr)   { Type.axfr }
 		int(Type.caa)    { Type.caa }
 		int(Type.cname)  { Type.cname }
 		int(Type.dnskey) { Type.dnskey }
@@ -351,110 +352,112 @@ fn parse_response(mut buf []u8, bytes int) Response {
 		a_len := binary.big_endian_u16_at(buf, rel_pos + 10)
 		mut record := ''
 
-		if a_type == Type.a {
-			mut result := []string{}
-			for item in buf[rel_pos+12..rel_pos+16] {
-				result << "$item"
+		match a_type {
+
+			.a {
+				mut result := []string{}
+				for item in buf[rel_pos+12..rel_pos+16] {
+					result << "$item"
+				}
+
+				ipv4 := result.join('.')
+				record = ipv4
 			}
 
-			ipv4 := result.join('.')
-			record = ipv4
-		}
+			.aaaa {
+				mut result := []string{}
+				for x in 12..28 {
+					result << buf[rel_pos + x].hex()
 
-		else if a_type == Type.aaaa {
-			mut result := []string{}
-			for x in 12..28 {
-				result << buf[rel_pos + x].hex()
+					if x < 27 && (x-1) % 2 == 0 {
+						result << ':'
+					}
+				}
 
-				if x < 27 && (x-1) % 2 == 0 {
-					result << ':'
+				ipv6 := result.join('')
+				record = shorten_ipv6(ipv6)
+			}
+
+			.caa {
+				caa_flags := buf[rel_pos + 12]
+				tag, tag_len := read_var_len(buf, rel_pos + 13)
+
+				issue := read_fixed_len(buf, rel_pos + 13 + tag_len + 1, a_len - tag_len - 2)
+				record = '${caa_flags} ${tag} ${issue}'
+			}
+
+			.cname {
+				cname, _ := read_domain(buf, rel_pos + 12)
+				record = cname
+			}
+
+			.mx {
+				preference := binary.big_endian_u16_at(buf, rel_pos + 12)
+				mx, _ := read_domain(buf, rel_pos + 14)
+				record = '${preference} ${mx}'
+			}
+
+			.ptr {
+				ptr, _ := read_domain(buf, rel_pos + 12)
+				record = ptr
+			}
+
+			.tlsa {
+				cert_usage := buf[rel_pos + 12]
+				selector := buf[rel_pos + 13]
+				matching_type := buf[rel_pos + 14]
+				tlsa_hex := read_fixed_len(buf, rel_pos + 15, 32)
+				record = "${cert_usage} ${selector} ${matching_type} "
+				for i in 0..32 {
+					if i == 28 {
+						record += ' '
+					}
+					record += tlsa_hex[i].hex().to_upper()
 				}
 			}
 
-			ipv6 := result.join('')
-			record = shorten_ipv6(ipv6)
-		}
+			.txt {
+				mut txt_len_total := 0
+				for {
+					txt_len := buf[rel_pos + 12]
+					txt_len_total = txt_len_total + 1 + txt_len
+					assert rel_pos + txt_len <= 512
+					txt := read_fixed_len(buf, rel_pos + 13, txt_len)
+					record = record + txt
 
-		else if a_type == Type.caa {
-			caa_flags := buf[rel_pos + 12]
-			tag, tag_len := read_var_len(buf, rel_pos + 13)
-
-			issue := read_fixed_len(buf, rel_pos + 13 + tag_len + 1, a_len - tag_len - 2)
-			record = '${caa_flags} ${tag} ${issue}'
-		}
-
-		else if a_type == Type.cname {
-			cname, _ := read_domain(buf, rel_pos + 12)
-			record = cname
-		}
-
-		else if a_type == Type.mx {
-			preference := binary.big_endian_u16_at(buf, rel_pos + 12)
-			mx, _ := read_domain(buf, rel_pos + 14)
-			record = '${preference} ${mx}'
-		}
-
-		else if a_type == Type.ptr {
-			ptr, _ := read_domain(buf, rel_pos + 12)
-			record = ptr
-		}
-
-		else if a_type == Type.tlsa {
-			cert_usage := buf[rel_pos + 12]
-			selector := buf[rel_pos + 13]
-			matching_type := buf[rel_pos + 14]
-			tlsa_hex := read_fixed_len(buf, rel_pos + 15, 32)
-			record = "${cert_usage} ${selector} ${matching_type} "
-			for i in 0..32 {
-				if i == 28 {
-					record += ' '
-				}
-				record += tlsa_hex[i].hex().to_upper()
-			}
-		}
-
-		else if a_type == Type.txt {
-			mut txt_len_total := 0
-			for {
-				txt_len := buf[rel_pos + 12]
-				txt_len_total = txt_len_total + 1 + txt_len
-				assert rel_pos + txt_len <= 512
-				txt := read_fixed_len(buf, rel_pos + 13, txt_len)
-				record = record + txt
-
-				if txt_len_total < a_len {
-					rel_pos = rel_pos + 1 + txt_len
-				}
-				else if txt_len_total == a_len {
-					rel_pos = rel_pos + 1 + txt_len + 12
-					break
-				}
-				else {
-					panic('txt_len_total > a_len (${txt_len_total})')
+					if txt_len_total < a_len {
+						rel_pos = rel_pos + 1 + txt_len
+					}
+					else if txt_len_total == a_len {
+						rel_pos = rel_pos + 1 + txt_len + 12
+						break
+					}
+					else {
+						panic('txt_len_total > a_len (${txt_len_total})')
+					}
 				}
 			}
-		}
 
-		else if a_type == Type.dnskey {
-			flags := binary.big_endian_u16_at(buf, rel_pos + 12)
-			protocol := buf[rel_pos + 14]
-			algorithm := buf[rel_pos + 15]
-			pubkey_raw := read_fixed_len(buf, rel_pos + 16, a_len - 4)
-			pubkey_b64 := base64.encode(pubkey_raw.bytes())
-			record = "${flags} ${protocol} ${algorithm} ${pubkey_b64}"
-		}
+			.dnskey {
+				flags := binary.big_endian_u16_at(buf, rel_pos + 12)
+				protocol := buf[rel_pos + 14]
+				algorithm := buf[rel_pos + 15]
+				pubkey_raw := read_fixed_len(buf, rel_pos + 16, a_len - 4)
+				pubkey_b64 := base64.encode(pubkey_raw.bytes())
+				record = "${flags} ${protocol} ${algorithm} ${pubkey_b64}"
+			}
 
-		else if a_type == Type.uri {
-			priority := binary.big_endian_u16_at(buf, rel_pos + 12)
-			weight := binary.big_endian_u16_at(buf, rel_pos + 14)
-			target := read_fixed_len(buf, rel_pos + 16, a_len - 4)
-			record = '${priority} ${weight} ${target}'
-		}
+			.uri {
+				priority := binary.big_endian_u16_at(buf, rel_pos + 12)
+				weight := binary.big_endian_u16_at(buf, rel_pos + 14)
+				target := read_fixed_len(buf, rel_pos + 16, a_len - 4)
+				record = '${priority} ${weight} ${target}'
+			}
 
-
-		else {
-			print('No handler for type ')
-			println(type_to_str(a_type))
+			else {
+				print('No handler for type ')
+				println(type_to_str(a_type))
+			}
 		}
 
 		if a_type != Type.txt {
