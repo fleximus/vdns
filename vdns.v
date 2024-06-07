@@ -47,7 +47,7 @@ fn int_to_class(i int) Class {
 	}
 }
 
-[flag]
+@[flag]
 enum Flags as u16 {
 	response             //  0
 	b2                   //  1
@@ -472,3 +472,4 @@ fn parse_response(mut buf []u8, bytes int) Response {
 
 	return Response{answers: answers}
 }
+

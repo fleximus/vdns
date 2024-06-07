@@ -76,11 +76,11 @@ fn test_vdns() {
 	result = vdns.query(vdns.Query{ domain: 'example.com', @type: vdns.Type.dnskey, resolver: resolver }) !
 	dnskey_answers := result.answers.clone()
 	answers.sort(a.record < b.record)
-	assert dnskey_answers[0].record == '256 3 13 5YeIQPdFZ+22gjmA90jfuq3kLTJ5BNazO8/BjdsTGX74l0Pc9Ei6JEKy/Q5hBb0k3e6X9JmlHloYxlQZYcAN7w=='
-	assert dnskey_answers[1].record == '256 3 13 /42vpFUdATVVhm6BjdSuvJHjAFJ/atP/xC318upEOo+D+p6I8LcvXKVTk8dMLoU5Z9e2RPwn4C4zOaK/jQ0FLg=='
-	assert dnskey_answers[2].record == '257 3 13 kXKkvWU3vGYfTJGl3qBd4qhiWp5aRs7YtkCJxD2d+t7KXqwahww5IgJtxJT2yFItlggazyfXqJEVOmMJ3qT0tQ=='
+	assert dnskey_answers[0].record == '256 3 13 nGzka+/3LSNN+P6JHx7Co8pdJ8Vjr2muj9neZK31FqTTEQkB/kQauyjLBxFwLgZcotUBgEu2+K/SWG4jAsW5+Q=='
+	assert dnskey_answers[1].record == '257 3 13 kXKkvWU3vGYfTJGl3qBd4qhiWp5aRs7YtkCJxD2d+t7KXqwahww5IgJtxJT2yFItlggazyfXqJEVOmMJ3qT0tQ=='
 
 	// Test URI record
 	result = vdns.query(vdns.Query{ domain: '_https._tcp.fleximus.de', @type: vdns.Type.uri, resolver: resolver }) !
 	assert result.answers[0].record == '10 1 https://fleximus.org'
 }
+
