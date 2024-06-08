@@ -1,6 +1,6 @@
 # VDNS
 
-This is a DNS library written in V.
+This is a DNS client library written in V.
 
 ## Features
 
@@ -30,7 +30,7 @@ v install --git https://github.com/fleximus/vdns
 
 ## Usage
 
-To use `vdns` in order to run queries, you need to specify the resolver's IP address, here in our example we make use of Cloudflares public 1.1.1.1 resolver.
+To use `vdns` in order to run queries, you need to specify the resolver's IP address, here in our example we make use of Cloudflare's public 1.1.1.1 resolver.
 
 ```v
 import fleximus.vdns
@@ -38,7 +38,12 @@ import fleximus.vdns
 fn main() {
 	resolver := '1.1.1.1:53'
 
-	result := vdns.query(vdns.Query{ domain: 'gmail.com', @type: vdns.Type.mx, resolver: resolver }) or { panic('Failed query') }
+	result := vdns.query(vdns.Query{
+		domain: 'gmail.com'
+		@type: .mx
+		resolver: resolver
+	}) or { panic('Failed query') }
+
 	for answer in result.answers {
 		println("${answer.name} ${answer.class} ${answer.ttl} ${answer.@type} ${answer.record}")
 	}
