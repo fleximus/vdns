@@ -1,0 +1,30 @@
+name: Tests & Formatting
+
+on: [push, pull_request]
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Latest V
+        uses: actions/checkout@v2
+        with:
+          repository: vlang/v
+          path: v
+
+      - name: Build V
+        run: cd v && make && sudo ./v symlink && cd -
+
+      - name: Checkout project
+        uses: actions/checkout@v2
+        with:
+          path: vdns
+
+      - name: Link module to ~/.vmodules
+        run: mkdir -p ~/.vmodules/fleximus && ln -s $(realpath vdns) ~/.vmodules/fleximus/vdns
+
+      - name: Run tests
+        run: cd vdns && v -W -N test .
+
+      - name: Run check-md
+        run: cd vdns && v check-md .
