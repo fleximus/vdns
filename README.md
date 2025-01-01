@@ -31,7 +31,8 @@ v install --git https://github.com/fleximus/vdns
 
 ## Usage
 
-To use `vdns` in order to run queries, you need to specify the resolver's IP address, here in our example we make use of Cloudflare's public 1.1.1.1 resolver.
+To use `vdns` in order to run queries, you need to specify the resolver's IP address.
+Here in our example we make use of Cloudflare's public 1.1.1.1 resolver.
 
 ```v
 import fleximus.vdns
