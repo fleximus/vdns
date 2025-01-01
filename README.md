@@ -45,7 +45,7 @@ fn main() {
 	}) or { panic('Failed query') }
 
 	for answer in result.answers {
-		println("${answer.name} ${answer.class} ${answer.ttl} ${answer.@type} ${answer.record}")
+		println('${answer.name} ${answer.class} ${answer.ttl} ${answer.@type} ${answer.record}')
 	}
 }
 ```

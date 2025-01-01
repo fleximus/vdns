@@ -65,6 +65,10 @@ fn test_vdns() {
 	result = query(Query{ domain: 'fleximus.org', @type: .mx, resolver: resolver }) !
 	assert result.answers[0].record == '10 bouncer.mxsystem.de'
 
+	// Test SRV record
+	result = query(Query{ domain: '_imaps._tcp.gmail.com', @type: .srv, resolver: resolver }) !
+	assert result.answers[0].record == '5 0 993 imap.gmail.com'
+
 	// Test TLSA record
 	result = query(Query{ domain: '_25._tcp.smtp.kernel-error.de', @type: .tlsa, resolver: resolver }) !
 	mut answers := result.answers.clone()
@@ -80,7 +84,7 @@ fn test_vdns() {
 	result = query(Query{ domain: 'example.com', @type: .dnskey, resolver: resolver }) !
 	dnskey_answers := result.answers.clone()
 	answers.sort(a.record < b.record)
-	assert dnskey_answers[0].record == '256 3 13 nGzka+/3LSNN+P6JHx7Co8pdJ8Vjr2muj9neZK31FqTTEQkB/kQauyjLBxFwLgZcotUBgEu2+K/SWG4jAsW5+Q=='
+	assert dnskey_answers[0].record == '256 3 13 ctWIH7gOwdtuaSwegv4XFW1HAz0tMMgd0TyMwc/BjN4MBC1QxkmUczUOPO+86v39h/tcKJIwCFicVh1cumyJGQ=='
 	assert dnskey_answers[1].record == '257 3 13 kXKkvWU3vGYfTJGl3qBd4qhiWp5aRs7YtkCJxD2d+t7KXqwahww5IgJtxJT2yFItlggazyfXqJEVOmMJ3qT0tQ=='
 
 	// Test URI record

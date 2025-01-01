@@ -14,6 +14,7 @@ pub enum Type as u16 {
 	mx     =  15  // RFC1035: mail exchange
 	txt    =  16  // RFC1035: text strings
 	aaaa   =  28
+	srv    =  33  // RFC2782: Service record
 	dnskey =  48  // RFC4034: Resource Records for the DNS Security Extensions
 	tlsa   =  52  // RFC6698: The DNS-Based Authentication of Named Entities (DANE)
 	              //          Transport Layer Security (TLS) Protocol: TLSA
@@ -229,6 +230,7 @@ fn type_to_str(t Type) string {
 		.ptr    { 'ptr' }
 		.spf    { 'spf' }
 		.soa    { 'soa' }
+		.srv    { 'srv' }
 		.tlsa   { 'tlsa' }
 		.txt    { 'txt' }
 		.uri    { 'uri' }
@@ -248,8 +250,9 @@ pub fn str_to_type(t string) Type {
 		'mx'     { .mx }
 		'ns'     { .ns }
 		'ptr'    { .ptr }
-		'spf'    { .spf }
 		'soa'    { .soa }
+		'spf'    { .spf }
+		'srv'    { .srv }
 		'tlsa'   { .tlsa }
 		'txt'    { .txt }
 		'uri'    { .uri }
@@ -262,17 +265,21 @@ pub fn str_to_type(t string) Type {
 
 fn int_to_type(i int) Type {
 	return match i {
-		int(Type.a)      { Type.a }
-		int(Type.aaaa)   { Type.aaaa }
-		int(Type.axfr)   { Type.axfr }
-		int(Type.caa)    { Type.caa }
-		int(Type.cname)  { Type.cname }
-		int(Type.dnskey) { Type.dnskey }
-		int(Type.mx)     { Type.mx }
-		int(Type.ptr)    { Type.ptr }
-		int(Type.tlsa)   { Type.tlsa }
-		int(Type.txt)    { Type.txt }
-		int(Type.uri)    { Type.uri }
+		int(Type.a)      { .a }
+		int(Type.aaaa)   { .aaaa }
+		int(Type.axfr)   { .axfr }
+		int(Type.caa)    { .caa }
+		int(Type.cname)  { .cname }
+		int(Type.dnskey) { .dnskey }
+		int(Type.ixfr)   { .ixfr }
+		int(Type.mx)     { .mx }
+		int(Type.ptr)    { .ptr }
+		int(Type.soa)    { .soa }
+		int(Type.spf)    { .spf }
+		int(Type.srv)    { .srv }
+		int(Type.tlsa)   { .tlsa }
+		int(Type.txt)    { .txt }
+		int(Type.uri)    { .uri }
 		else {
 			panic('unknown type ${i}') // @TODO: Don't panic!
 		}
@@ -402,6 +409,14 @@ fn parse_response(mut buf []u8, bytes int) Response {
 				record = ptr
 			}
 
+			.srv {
+                priority := binary.big_endian_u16_at(buf, rel_pos + 12)
+                weight := binary.big_endian_u16_at(buf, rel_pos + 14)
+                port := binary.big_endian_u16_at(buf, rel_pos + 16)
+                target, _ := read_domain(buf, rel_pos + 18)
+                record = '${priority} ${weight} ${port} ${target}'
+			}
+
 			.tlsa {
 				cert_usage := buf[rel_pos + 12]
 				selector := buf[rel_pos + 13]
@@ -460,7 +475,7 @@ fn parse_response(mut buf []u8, bytes int) Response {
 			}
 		}
 
-		if a_type != Type.txt {
+		if a_type != .txt {
 			rel_pos = rel_pos + 12 + a_len
 		}
 
