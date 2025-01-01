@@ -40,8 +40,8 @@ fn main() {
 	resolver := '1.1.1.1:53'
 
 	result := vdns.query(vdns.Query{
-		domain: 'gmail.com'
-		@type: .mx
+		domain:   'gmail.com'
+		@type:    .mx
 		resolver: resolver
 	}) or { panic('Failed query') }
 
