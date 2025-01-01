@@ -28,21 +28,21 @@ pub enum Type as u16 {
 }
 
 enum Class as u16 {
-	@in   =   1  // RFC1035: the Internet
-	cs    =   2
-	ch    =   3  // RFC1035: the CHAOS class
-	hs    =   4
-	@none = 254  // RFC2136
-	any   = 255  // RFC1035: ANY
+	in   =   1  // RFC1035: the Internet
+	cs   =   2
+	ch   =   3  // RFC1035: the CHAOS class
+	hs   =   4
+	none = 254  // RFC2136
+	any  = 255  // RFC1035: ANY
 }
 
 fn int_to_class(i int) Class {
 	return match i {
-		int(Class.@in) { Class.@in }
+		int(Class.in) { Class.in }
 		int(Class.cs) { Class.cs }
 		int(Class.ch) { Class.ch }
 		int(Class.hs) { Class.hs }
-		int(Class.@none) { Class.@none }
+		int(Class.none) { Class.none }
 		int(Class.any) { Class.any }
 		else { panic('unknown class ${i}') }  // @TODO: Don't panic!
 	}
@@ -60,12 +60,12 @@ enum Flags as u16 {
 	truncated_response   //  7
 	recursion_desired    //  8
 	recursion_available  //  9
-	reserved             // 10
-	authentic_data       // 11
-	checking_disabled    // 12
-	b13                  // 13
-	b14                  // 14
-	b15                  // 15
+	reserved            // 10
+	authentic_data      // 11
+	checking_disabled   // 12
+	b13                 // 13
+	b14                 // 14
+	b15                 // 15
 }
 
 pub struct Query {
@@ -78,15 +78,15 @@ pub struct Query {
 	// ------------------
 pub:
 	domain string
-	@type Type  = Type.a
-	class Class = Class.@in
+	type Type  = Type.a
+	class Class = Class.in
 	resolver string
 }
 
 pub struct Answer {
 pub:
 	name string
-	@type Type
+	type Type
 	class Class
 	ttl u32
 	record string
@@ -108,7 +108,7 @@ fn query_to_buf(q Query) []u8 {
 	binary.big_endian_put_u16_at(mut buf, q.additional_rrs, 10)
 	buf << str2dns(q.domain)
 	buf << [u8(0), 0, 0, 0]  // array expansion for type and class
-	binary.big_endian_put_u16_at(mut buf, u16(q.@type), 14 + q.domain.len)
+	binary.big_endian_put_u16_at(mut buf, u16(q.type), 14 + q.domain.len)
 	binary.big_endian_put_u16_at(mut buf, u16(q.class), 16 + q.domain.len)
 
 	return buf
@@ -481,7 +481,7 @@ fn parse_response(mut buf []u8, bytes int) Response {
 
 		answers << Answer{
 			name: a_domain,
-			@type: a_type,
+			type: a_type,
 			class: a_class,
 			ttl: ttl,
 			record: record
