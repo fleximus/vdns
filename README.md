@@ -15,6 +15,7 @@ Supported query types:
 - [x] MX
 - [x] NS
 - [x] SOA
+- [x] SRV
 - [x] TLSA
 - [x] TXT
 - [x] URI
