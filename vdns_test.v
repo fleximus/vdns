@@ -73,8 +73,8 @@ fn test_vdns() {
 	result = query(Query{ domain: '_25._tcp.smtp.kernel-error.de', @type: .tlsa, resolver: resolver }) !
 	mut answers := result.answers.clone()
 	answers.sort(a.record < b.record)
-	assert answers[0].record == '3 1 1 16F49623BB0E75FAE4CD1C562BF20AE5DB8303AF7101856ED262E257 9CE03BCB'
-	assert answers[1].record == '3 1 1 1771FB07FD574EE9D9F571AB2985CC8F20F309B6BB642742482AAB7F 3D466D9D'
+	assert answers[0].record == '3 1 1 35CAFD57F224FEF9872C8201B070E4CAEC38E2DF5B981EFD70F6C9F7 C433B249'
+	assert answers[1].record == '3 1 1 F39337ABC83C1E8F9FD374BF8BA80624D457F11C5367B65FCB0A2D73 1354BD9F'
 
 	// Test TXT record
 	result = query(Query{ domain: 'fleximus.org', @type: .txt, resolver: resolver }) !
@@ -84,7 +84,7 @@ fn test_vdns() {
 	result = query(Query{ domain: 'example.com', @type: .dnskey, resolver: resolver }) !
 	dnskey_answers := result.answers.clone()
 	answers.sort(a.record < b.record)
-	assert dnskey_answers[0].record == '256 3 13 ctWIH7gOwdtuaSwegv4XFW1HAz0tMMgd0TyMwc/BjN4MBC1QxkmUczUOPO+86v39h/tcKJIwCFicVh1cumyJGQ=='
+	assert dnskey_answers[0].record == '256 3 13 bqwx9AZVDIwJxfcJEALNo0Rn9vZIXQIAjp2bn9WK86KOJeRFB+L3ojCh8famqBCSG6CPRVp6nNCPnS28vV5R7Q=='
 	assert dnskey_answers[1].record == '257 3 13 kXKkvWU3vGYfTJGl3qBd4qhiWp5aRs7YtkCJxD2d+t7KXqwahww5IgJtxJT2yFItlggazyfXqJEVOmMJ3qT0tQ=='
 
 	// Test URI record
