@@ -13,23 +13,23 @@ pub enum Type as u16 {
 	ptr    =  12  // RFC1035: domain name pointer
 	mx     =  15  // RFC1035: mail exchange
 	txt    =  16  // RFC1035: text strings
-	aaaa   =  28
+	aaaa   =  28  // RFC3596: IPv6 host address
 	srv    =  33  // RFC2782: Service record
 	dnskey =  48  // RFC4034: Resource Records for the DNS Security Extensions
 	tlsa   =  52  // RFC6698: The DNS-Based Authentication of Named Entities (DANE)
 	              //          Transport Layer Security (TLS) Protocol: TLSA
-	spf    =  99
-	tsig   = 250
-	ixfr   = 251
-	axfr   = 252
-	any    = 255
+	spf    =  99  // RFC7208: Sender Policy Framework (SPF)
+	tsig   = 250  // RFC2845: Transaction Signature
+	ixfr   = 251  // RFC5936: incremental zone transfer
+	axfr   = 252  // RFC5936: zone transfer
+	any    = 255  // RFC1035: any record
 	uri    = 256  // RFC7553: The Uniform Resource Identifier (URI) DNS Resource Record
 	caa    = 257  // RFC6844: certificate authority authorization 
 }
 
 enum Class as u16 {
 	in   =   1  // RFC1035: the Internet
-	cs   =   2
+	cs   =   2  // RFC1035: the CHAOS class
 	ch   =   3  // RFC1035: the CHAOS class
 	hs   =   4
 	none = 254  // RFC2136
