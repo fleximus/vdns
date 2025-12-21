@@ -5,6 +5,7 @@ fn test_str_to_type() {
 	assert str_to_type('aaaa')   == .aaaa
 	assert str_to_type('axfr')   == .axfr
 	assert str_to_type('caa')    == .caa
+	assert str_to_type('cert')   == .cert
 	assert str_to_type('cname')  == .cname
 	assert str_to_type('dnskey') == .dnskey
 	assert str_to_type('ixfr')   == .ixfr
@@ -23,6 +24,7 @@ fn test_type_to_str() {
 	assert type_to_str(.aaaa)   == 'aaaa'
 	assert type_to_str(.axfr)   == 'axfr'
 	assert type_to_str(.caa)    == 'caa'
+	assert type_to_str(.cert)   == 'cert'
 	assert type_to_str(.cname)  == 'cname'
 	assert type_to_str(.dnskey) == 'dnskey'
 	assert type_to_str(.ixfr)   == 'ixfr'

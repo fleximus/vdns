@@ -15,6 +15,7 @@ pub enum Type as u16 {
 	txt    =  16  // RFC1035: text strings
 	aaaa   =  28  // RFC3596: IPv6 host address
 	srv    =  33  // RFC2782: Service record
+	cert   =  37  // RFC4398: Certificate record
 	dnskey =  48  // RFC4034: Resource Records for the DNS Security Extensions
 	tlsa   =  52  // RFC6698: The DNS-Based Authentication of Named Entities (DANE)
 	              //          Transport Layer Security (TLS) Protocol: TLSA
@@ -332,6 +333,7 @@ fn type_to_str(t Type) string {
 		.aaaa   { 'aaaa' }
 		.axfr   { 'axfr' }
 		.caa    { 'caa' }
+		.cert   { 'cert' }
 		.cname  { 'cname' }
 		.dnskey { 'dnskey' }
 		.ixfr   { 'ixfr' }
@@ -354,6 +356,7 @@ pub fn str_to_type(t string) Type {
 		'aaaa'   { .aaaa }
 		'axfr'   { .axfr }
 		'caa'    { .caa }
+		'cert'   { .cert }
 		'cname'  { .cname }
 		'dnskey' { .dnskey }
 		'ixfr'   { .ixfr }
@@ -379,6 +382,7 @@ fn int_to_type(i int) Type {
 		int(Type.aaaa)   { .aaaa }
 		int(Type.axfr)   { .axfr }
 		int(Type.caa)    { .caa }
+		int(Type.cert)   { .cert }
 		int(Type.cname)  { .cname }
 		int(Type.dnskey) { .dnskey }
 		int(Type.ixfr)   { .ixfr }
@@ -504,6 +508,15 @@ fn parse_response(mut buf []u8, bytes int) Response {
 
 				issue := read_fixed_len(buf, data_offset + 1 + tag_len + 1, a_len - tag_len - 2)
 				record = '${caa_flags} ${tag} ${issue}'
+			}
+
+			.cert {
+				cert_type := binary.big_endian_u16_at(buf, data_offset)
+				key_tag := binary.big_endian_u16_at(buf, data_offset + 2)
+				algorithm := buf[data_offset + 4]
+				cert_data := read_fixed_len(buf, data_offset + 5, a_len - 5)
+				cert_b64 := base64.encode(cert_data.bytes())
+				record = '${cert_type} ${key_tag} ${algorithm} ${cert_b64}'
 			}
 
 			.cname {

@@ -9,6 +9,7 @@ Supported query types:
 - [x] AAAA
 - [x] AXFR
 - [x] CAA
+- [x] CERT
 - [x] CNAME
 - [x] DNSKEY
 - [x] PTR
