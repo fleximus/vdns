@@ -22,6 +22,10 @@ Supported query types:
 - [x] TXT
 - [x] URI
 
+Other features:
+- [x] Configurable timeout (default: 5s)
+- [x] Automatic TCP fallback on truncation
+
 ## Installation
 
 You can install this package either from [VPM] or from GitHub:
@@ -52,6 +56,19 @@ fn main() {
 		println('${answer.name} ${answer.class} ${answer.ttl} ${answer.@type} ${answer.record}')
 	}
 }
+```
+
+### Custom Timeout
+
+```v
+import fleximus.vdns
+import time
+
+result := vdns.query(vdns.Query{
+	domain:   'example.com'
+	resolver: '1.1.1.1:53'
+	timeout:  2 * time.second
+}) or { panic('Query timed out') }
 ```
 
 This library is under development: **Do NOT use in production!**

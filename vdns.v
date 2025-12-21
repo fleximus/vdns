@@ -4,6 +4,9 @@ import net
 import encoding.binary
 import encoding.base64
 import rand
+import time
+
+const default_timeout = 5 * time.second
 
 pub enum Type as u16 {
 	a      =   1  // RFC1035: a host address
@@ -87,6 +90,7 @@ pub:
 	resolver string
 	tcp bool    // Force TCP transport
 	serial u32  // Current SOA serial for IXFR queries
+	timeout time.Duration = default_timeout
 }
 
 pub struct Answer {
@@ -193,6 +197,8 @@ fn query_to_buf_ixfr_tcp(q Query) []u8 {
 
 fn query_tcp(q Query) !Response {
 	mut conn := net.dial_tcp(q.resolver) or { return error('could not dial TCP: ${err}') }
+	conn.set_read_timeout(q.timeout)
+	conn.set_write_timeout(q.timeout)
 	defer {
 		conn.close() or {}
 	}
@@ -219,6 +225,8 @@ fn query_tcp(q Query) !Response {
 
 fn query_axfr(q Query) !Response {
 	mut conn := net.dial_tcp(q.resolver) or { return error('could not dial TCP: ${err}') }
+	conn.set_read_timeout(q.timeout)
+	conn.set_write_timeout(q.timeout)
 	defer {
 		conn.close() or {}
 	}
@@ -266,6 +274,8 @@ fn query_axfr(q Query) !Response {
 
 fn query_ixfr(q Query) !Response {
 	mut conn := net.dial_tcp(q.resolver) or { return error('could not dial TCP: ${err}') }
+	conn.set_read_timeout(q.timeout)
+	conn.set_write_timeout(q.timeout)
 	defer {
 		conn.close() or {}
 	}
@@ -351,11 +361,16 @@ pub fn query(q Query) !Response {
 	mut buf := []u8{len: 512}
 
 	mut conn := net.dial_udp(q.resolver) or { return error('could not dial UDP: ${err}') }
+	conn.set_read_timeout(q.timeout)
+	conn.set_write_timeout(q.timeout)
 	defer {
 		conn.close() or {}
 	}
 
 	conn.write(query_to_buf(q)) or { return error('could not send UDP query') }
+
+	// Wait for response with timeout
+	conn.wait_for_read() or { return error('query timeout: ${err}') }
 
 	res, _ := conn.read(mut buf) or { return error('Cannot read from buffer') }
 
