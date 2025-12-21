@@ -304,7 +304,7 @@ fn read_domain(buf []u8, start int) (string, int) {
 
 		// Check for compression (top 2 bits set = 0xc0)
 		if len >= 0xc0 {
-			offset := int(len & 0x3f) << 8 | int(buf[pos + 1])
+			offset := int((u16(len & 0x3f) << 8) | u16(buf[pos + 1]))
 			total_bytes = total_bytes + 2  // Compression pointer is 2 bytes
 			// @TODO: get rid of unsafe construct
 			unsafe {
