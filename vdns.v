@@ -187,7 +187,12 @@ fn read_domain(buf []u8, start int) (string, int) {
 
 		// Read until null termination
 		if len == 0 {
-			s = s.trim_right('.')
+			// Root domain (Null-MX) returns "." instead of empty string
+			if s == '' {
+				s = '.'
+			} else {
+				s = s.trim_right('.')
+			}
 			break
 		}
 		

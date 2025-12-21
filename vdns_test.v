@@ -47,15 +47,15 @@ fn test_vdns() {
 
 	// Test A record (implicit)
 	result = query(Query{ domain: 'fleximus.org', resolver: resolver }) !
-	assert result.answers[0].record == '95.216.116.79'
+	assert result.answers[0].record == '142.132.140.15'
 
 	// Test A record (explicit)
 	result = query(Query{ domain: 'fleximus.org', @type: .a, resolver: resolver }) !
-	assert result.answers[0].record == '95.216.116.79'
+	assert result.answers[0].record == '142.132.140.15'
 
 	// Test AAAA record
 	result = query(Query{ domain: 'fleximus.org', @type: .aaaa, resolver: resolver }) !
-	assert result.answers[0].record == '2a01:4f9:2b:1a1c:5457:76dc:a4cf:180'
+	assert result.answers[0].record == '2a01:4f8:261:1262:5457:76dc:a4cf:180'
 
 	// Test CAA record
 	result = query(Query{ domain: 'fleximus.org', @type: .caa, resolver: resolver }) !
@@ -64,6 +64,10 @@ fn test_vdns() {
 	// Test MX record
 	result = query(Query{ domain: 'fleximus.org', @type: .mx, resolver: resolver }) !
 	assert result.answers[0].record == '10 bouncer.mxsystem.de'
+
+	// Test NULL-MX record
+	result = query(Query{ domain: 'example.com', @type: .mx, resolver: resolver }) !
+	assert result.answers[0].record == '0 .'
 
 	// Test SRV record
 	result = query(Query{ domain: '_imaps._tcp.gmail.com', @type: .srv, resolver: resolver }) !
@@ -84,8 +88,8 @@ fn test_vdns() {
 	result = query(Query{ domain: 'example.com', @type: .dnskey, resolver: resolver }) !
 	dnskey_answers := result.answers.clone()
 	answers.sort(a.record < b.record)
-	assert dnskey_answers[0].record == '256 3 13 bqwx9AZVDIwJxfcJEALNo0Rn9vZIXQIAjp2bn9WK86KOJeRFB+L3ojCh8famqBCSG6CPRVp6nNCPnS28vV5R7Q=='
-	assert dnskey_answers[1].record == '257 3 13 kXKkvWU3vGYfTJGl3qBd4qhiWp5aRs7YtkCJxD2d+t7KXqwahww5IgJtxJT2yFItlggazyfXqJEVOmMJ3qT0tQ=='
+	assert dnskey_answers[0].record == '256 3 13 MjyZielP0GqniI1+j+wAG/3t0ImDDIlj1CxR0oobkZQHSKH2Fqx6tm2NcYu57POJ83SzCWLkqIjZHS1mh5wbaw=='
+	assert dnskey_answers[1].record == '256 3 13 kxipjoIbNZDsWqEKaYaGq6fM/XThrRp1ue6AV9R/n3eWxpGCeCWJb47PEEEj/Q6VAYFW/7UFo5mXoZfxKYZa3A=='
 
 	// Test URI record
 	result = query(Query{ domain: '_https._tcp.fleximus.de', @type: .uri, resolver: resolver }) !
