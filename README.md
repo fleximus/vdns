@@ -7,7 +7,7 @@ This is a DNS client library written in V.
 Supported query types:
 - [x] A
 - [x] AAAA
-- [ ] AXFR
+- [x] AXFR
 - [x] CAA
 - [x] CNAME
 - [x] DNSKEY

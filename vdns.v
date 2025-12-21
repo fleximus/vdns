@@ -44,7 +44,10 @@ fn int_to_class(i int) Class {
 		int(Class.hs) { Class.hs }
 		int(Class.none) { Class.none }
 		int(Class.any) { Class.any }
-		else { panic('unknown class ${i}') }  // @TODO: Don't panic!
+		else {
+			eprintln('unsupported class ${i}')
+			return Class.in  // Default to IN class
+		}
 	}
 }
 
@@ -154,6 +157,53 @@ fn query_tcp(q Query) !Response {
 	return parse_response(mut &buf, int(msg_len))
 }
 
+fn query_axfr(q Query) !Response {
+	mut conn := net.dial_tcp(q.resolver) or { return error('could not dial TCP: ${err}') }
+	defer {
+		conn.close() or {}
+	}
+
+	conn.write(query_to_buf_tcp(q)) or { return error('could not send AXFR query') }
+
+	mut all_answers := []Answer{}
+	mut soa_count := 0
+
+	for {
+		// Read 2-byte length prefix
+		mut len_buf := []u8{len: 2}
+		conn.read(mut len_buf) or { break }
+		msg_len := binary.big_endian_u16_at(len_buf, 0)
+		if msg_len == 0 {
+			break
+		}
+
+		// Read full DNS message
+		mut buf := []u8{}
+		mut remaining := int(msg_len)
+		for remaining > 0 {
+			mut chunk := []u8{len: remaining}
+			n := conn.read(mut chunk) or { break }
+			buf << chunk[..n]
+			remaining -= n
+		}
+
+		// Parse and collect answers
+		response := parse_response(mut &buf, int(msg_len))
+		for answer in response.answers {
+			all_answers << answer
+			if answer.type == .soa {
+				soa_count++
+				if soa_count >= 2 {
+					// Closing SOA received, transfer complete
+					return Response{answers: all_answers}
+				}
+			}
+		}
+	}
+
+	return Response{answers: all_answers}
+}
+
 fn query_to_string(query Query) string {
 	q := query.transaction_id.str() + query.flags.str()
 
@@ -175,6 +225,11 @@ fn str2dns(s string) []u8 {
 }
 
 pub fn query(q Query) !Response {
+	// AXFR requires special handling (multiple messages)
+	if q.type == .axfr {
+		return query_axfr(q)
+	}
+
 	// If explicit TCP requested, use TCP directly
 	if q.tcp {
 		return query_tcp(q)
@@ -233,10 +288,10 @@ fn read_domain(buf []u8, start int) (string, int) {
 
 	for {
 		len = buf[pos]
-		total_bytes = total_bytes + 1
 
 		// Read until null termination
 		if len == 0 {
+			total_bytes = total_bytes + 1
 			// Root domain (Null-MX) returns "." instead of empty string
 			if s == '' {
 				s = '.'
@@ -245,15 +300,15 @@ fn read_domain(buf []u8, start int) (string, int) {
 			}
 			break
 		}
-		
-		// Check for compression
-		if len == 0xc0 {
-			offset := buf[pos + 1]
+
+		// Check for compression (top 2 bits set = 0xc0)
+		if len >= 0xc0 {
+			offset := int(len & 0x3f) << 8 | int(buf[pos + 1])
+			total_bytes = total_bytes + 2  // Compression pointer is 2 bytes
 			// @TODO: get rid of unsafe construct
 			unsafe {
-				part, part_len := read_domain(buf, offset)
+				part, _ := read_domain(buf, offset)
 				s = s + part
-				pos = pos + part_len
 			}
 			break
 		}
@@ -264,7 +319,7 @@ fn read_domain(buf []u8, start int) (string, int) {
 				s = s + buf[pos + 1].vstring_literal_with_len(len) + '.'
 			}
 			pos = pos + len + 1
-			total_bytes = total_bytes + len
+			total_bytes = total_bytes + 1 + len
 		}
 	}
 
@@ -328,6 +383,7 @@ fn int_to_type(i int) Type {
 		int(Type.dnskey) { .dnskey }
 		int(Type.ixfr)   { .ixfr }
 		int(Type.mx)     { .mx }
+		int(Type.ns)     { .ns }
 		int(Type.ptr)    { .ptr }
 		int(Type.soa)    { .soa }
 		int(Type.spf)    { .spf }
@@ -336,7 +392,8 @@ fn int_to_type(i int) Type {
 		int(Type.txt)    { .txt }
 		int(Type.uri)    { .uri }
 		else {
-			panic('unknown type ${i}') // @TODO: Don't panic!
+			eprintln('unsupported type ${i}')
+			return .any  // Return 'any' for unsupported types
 		}
 	}
 }
@@ -379,7 +436,7 @@ fn parse_response(mut buf []u8, bytes int) Response {
 	num_questions := binary.big_endian_u16_at(buf, 4)
 	num_answers := binary.big_endian_u16_at(buf, 6)
 
-	assert num_questions == 1
+	assert num_questions <= 1  // AXFR responses may have 0 questions
 
 	if num_answers ==  0 {
 		println("No answers!")
@@ -406,19 +463,20 @@ fn parse_response(mut buf []u8, bytes int) Response {
 	// --- Answers ---
 
 	for _ in 0..num_answers {
-		a_domain, _ := read_domain(buf, rel_pos)
-		a_type_i := binary.big_endian_u16_at(buf, rel_pos + 2)
+		a_domain, name_len := read_domain(buf, rel_pos)
+		a_type_i := binary.big_endian_u16_at(buf, rel_pos + name_len)
 		a_type := int_to_type(a_type_i)
-		a_class := int_to_class(binary.big_endian_u16_at(buf, rel_pos + 4))
-		ttl := binary.big_endian_u32_at(buf, rel_pos + 6)
-		a_len := binary.big_endian_u16_at(buf, rel_pos + 10)
+		a_class := int_to_class(binary.big_endian_u16_at(buf, rel_pos + name_len + 2))
+		ttl := binary.big_endian_u32_at(buf, rel_pos + name_len + 4)
+		a_len := binary.big_endian_u16_at(buf, rel_pos + name_len + 8)
 		mut record := ''
+		data_offset := rel_pos + name_len + 10
 
 		match a_type {
 
 			.a {
 				mut result := []string{}
-				for item in buf[rel_pos+12..rel_pos+16] {
+				for item in buf[data_offset..data_offset+4] {
 					result << "$item"
 				}
 
@@ -428,10 +486,10 @@ fn parse_response(mut buf []u8, bytes int) Response {
 
 			.aaaa {
 				mut result := []string{}
-				for x in 12..28 {
-					result << buf[rel_pos + x].hex()
+				for x in 0..16 {
+					result << buf[data_offset + x].hex()
 
-					if x < 27 && (x-1) % 2 == 0 {
+					if x < 15 && x % 2 == 1 {
 						result << ':'
 					}
 				}
@@ -441,42 +499,59 @@ fn parse_response(mut buf []u8, bytes int) Response {
 			}
 
 			.caa {
-				caa_flags := buf[rel_pos + 12]
-				tag, tag_len := read_var_len(buf, rel_pos + 13)
+				caa_flags := buf[data_offset]
+				tag, tag_len := read_var_len(buf, data_offset + 1)
 
-				issue := read_fixed_len(buf, rel_pos + 13 + tag_len + 1, a_len - tag_len - 2)
+				issue := read_fixed_len(buf, data_offset + 1 + tag_len + 1, a_len - tag_len - 2)
 				record = '${caa_flags} ${tag} ${issue}'
 			}
 
 			.cname {
-				cname, _ := read_domain(buf, rel_pos + 12)
+				cname, _ := read_domain(buf, data_offset)
 				record = cname
 			}
 
 			.mx {
-				preference := binary.big_endian_u16_at(buf, rel_pos + 12)
-				mx, _ := read_domain(buf, rel_pos + 14)
+				preference := binary.big_endian_u16_at(buf, data_offset)
+				mx, _ := read_domain(buf, data_offset + 2)
 				record = '${preference} ${mx}'
 			}
 
+			.ns {
+				ns, _ := read_domain(buf, data_offset)
+				record = ns
+			}
+
 			.ptr {
-				ptr, _ := read_domain(buf, rel_pos + 12)
+				ptr, _ := read_domain(buf, data_offset)
 				record = ptr
 			}
 
+			.soa {
+				primary_ns, ns_bytes := read_domain(buf, data_offset)
+				email, email_bytes := read_domain(buf, data_offset + ns_bytes)
+				base := data_offset + ns_bytes + email_bytes
+				serial := binary.big_endian_u32_at(buf, base)
+				refresh := binary.big_endian_u32_at(buf, base + 4)
+				retry := binary.big_endian_u32_at(buf, base + 8)
+				expire := binary.big_endian_u32_at(buf, base + 12)
+				minimum := binary.big_endian_u32_at(buf, base + 16)
+				record = '${primary_ns} ${email} ${serial} ${refresh} ${retry} ${expire} ${minimum}'
+			}
+
 			.srv {
-                priority := binary.big_endian_u16_at(buf, rel_pos + 12)
-                weight := binary.big_endian_u16_at(buf, rel_pos + 14)
-                port := binary.big_endian_u16_at(buf, rel_pos + 16)
-                target, _ := read_domain(buf, rel_pos + 18)
+                priority := binary.big_endian_u16_at(buf, data_offset)
+                weight := binary.big_endian_u16_at(buf, data_offset + 2)
+                port := binary.big_endian_u16_at(buf, data_offset + 4)
+                target, _ := read_domain(buf, data_offset + 6)
                 record = '${priority} ${weight} ${port} ${target}'
 			}
 
 			.tlsa {
-				cert_usage := buf[rel_pos + 12]
-				selector := buf[rel_pos + 13]
-				matching_type := buf[rel_pos + 14]
-				tlsa_hex := read_fixed_len(buf, rel_pos + 15, 32)
+				cert_usage := buf[data_offset]
+				selector := buf[data_offset + 1]
+				matching_type := buf[data_offset + 2]
+				tlsa_hex := read_fixed_len(buf, data_offset + 3, 32)
 				record = "${cert_usage} ${selector} ${matching_type} "
 				for i in 0..32 {
 					if i == 28 {
@@ -487,19 +562,19 @@ fn parse_response(mut buf []u8, bytes int) Response {
 			}
 
 			.txt {
+				mut txt_offset := data_offset
 				mut txt_len_total := 0
 				for {
-					txt_len := buf[rel_pos + 12]
+					txt_len := buf[txt_offset]
 					txt_len_total = txt_len_total + 1 + txt_len
-					assert rel_pos + txt_len <= buf.len
-					txt := read_fixed_len(buf, rel_pos + 13, txt_len)
+					assert txt_offset + txt_len <= buf.len
+					txt := read_fixed_len(buf, txt_offset + 1, txt_len)
 					record = record + txt
 
 					if txt_len_total < a_len {
-						rel_pos = rel_pos + 1 + txt_len
+						txt_offset = txt_offset + 1 + txt_len
 					}
 					else if txt_len_total == a_len {
-						rel_pos = rel_pos + 1 + txt_len + 12
 						break
 					}
 					else {
@@ -509,18 +584,18 @@ fn parse_response(mut buf []u8, bytes int) Response {
 			}
 
 			.dnskey {
-				flags := binary.big_endian_u16_at(buf, rel_pos + 12)
-				protocol := buf[rel_pos + 14]
-				algorithm := buf[rel_pos + 15]
-				pubkey_raw := read_fixed_len(buf, rel_pos + 16, a_len - 4)
+				flags := binary.big_endian_u16_at(buf, data_offset)
+				protocol := buf[data_offset + 2]
+				algorithm := buf[data_offset + 3]
+				pubkey_raw := read_fixed_len(buf, data_offset + 4, a_len - 4)
 				pubkey_b64 := base64.encode(pubkey_raw.bytes())
 				record = "${flags} ${protocol} ${algorithm} ${pubkey_b64}"
 			}
 
 			.uri {
-				priority := binary.big_endian_u16_at(buf, rel_pos + 12)
-				weight := binary.big_endian_u16_at(buf, rel_pos + 14)
-				target := read_fixed_len(buf, rel_pos + 16, a_len - 4)
+				priority := binary.big_endian_u16_at(buf, data_offset)
+				weight := binary.big_endian_u16_at(buf, data_offset + 2)
+				target := read_fixed_len(buf, data_offset + 4, a_len - 4)
 				record = '${priority} ${weight} ${target}'
 			}
 
@@ -530,9 +605,7 @@ fn parse_response(mut buf []u8, bytes int) Response {
 			}
 		}
 
-		if a_type != .txt {
-			rel_pos = rel_pos + 12 + a_len
-		}
+		rel_pos = rel_pos + name_len + 10 + a_len
 
 		answers << Answer{
 			name: a_domain,

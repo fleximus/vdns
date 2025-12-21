@@ -98,5 +98,12 @@ fn test_vdns() {
 	// Test URI record
 	result = query(Query{ domain: '_https._tcp.fleximus.de', @type: .uri, resolver: resolver }) !
 	assert result.answers[0].record == '10 1 https://fleximus.org'
+
+	// Test AXFR (zone transfer) - zonetransfer.me allows public AXFR
+	result = query(Query{ domain: 'zonetransfer.me', @type: .axfr, resolver: '81.4.108.41:53' }) !
+	assert result.answers.len > 10  // Zone has many records
+	// First and last records should be SOA
+	assert result.answers[0].type == .soa
+	assert result.answers[result.answers.len - 1].type == .soa
 }
 
