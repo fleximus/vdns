@@ -84,6 +84,10 @@ fn test_vdns() {
 	result = query(Query{ domain: 'fleximus.org', @type: .txt, resolver: resolver }) !
 	assert result.answers[0].record == 'v=spf1 mx -all'
 
+	// Test TXT record (TCP fallback - google.com has many TXT records exceeding 512 bytes)
+	result = query(Query{ domain: 'google.com', @type: .txt, resolver: resolver }) !
+	assert result.answers.len > 10  // google.com has many TXT records
+
 	// Test DNSKEY record
 	result = query(Query{ domain: 'example.com', @type: .dnskey, resolver: resolver }) !
 	dnskey_answers := result.answers.clone()

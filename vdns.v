@@ -81,6 +81,7 @@ pub:
 	type Type  = Type.a
 	class Class = Class.in
 	resolver string
+	tcp bool  // Force TCP transport
 }
 
 pub struct Answer {
@@ -114,6 +115,45 @@ fn query_to_buf(q Query) []u8 {
 	return buf
 }
 
+fn query_to_buf_tcp(q Query) []u8 {
+	dns_msg := query_to_buf(q)
+	mut buf := []u8{len: 2}
+	binary.big_endian_put_u16_at(mut buf, u16(dns_msg.len), 0)
+	buf << dns_msg
+	return buf
+}
+
+fn is_truncated(buf []u8) bool {
+	flags := binary.big_endian_u16_at(buf, 2)
+	return (flags & 0x0200) != 0  // TC flag is bit 9
+}
+
+fn query_tcp(q Query) !Response {
+	mut conn := net.dial_tcp(q.resolver) or { return error('could not dial TCP: ${err}') }
+	defer {
+		conn.close() or {}
+	}
+
+	conn.write(query_to_buf_tcp(q)) or { return error('could not send TCP query') }
+
+	// Read 2-byte length prefix
+	mut len_buf := []u8{len: 2}
+	conn.read(mut len_buf) or { return error('could not read length prefix') }
+	msg_len := binary.big_endian_u16_at(len_buf, 0)
+
+	// Read full DNS message (may require multiple reads)
+	mut buf := []u8{}
+	mut remaining := int(msg_len)
+	for remaining > 0 {
+		mut chunk := []u8{len: remaining}
+		n := conn.read(mut chunk) or { return error('could not read DNS response') }
+		buf << chunk[..n]
+		remaining -= n
+	}
+
+	return parse_response(mut &buf, int(msg_len))
+}
+
 fn query_to_string(query Query) string {
 	q := query.transaction_id.str() + query.flags.str()
 
@@ -135,17 +175,27 @@ fn str2dns(s string) []u8 {
 }
 
 pub fn query(q Query) !Response {
+	// If explicit TCP requested, use TCP directly
+	if q.tcp {
+		return query_tcp(q)
+	}
+
+	// Try UDP first
 	mut buf := []u8{len: 512}
 
-	mut conn := net.dial_udp(q.resolver) or { panic('could not net.dial_udp: ${err}') }
+	mut conn := net.dial_udp(q.resolver) or { return error('could not dial UDP: ${err}') }
 	defer {
 		conn.close() or {}
 	}
 
-	conn.write(query_to_buf(q)) or { panic('could not send data to UDP')}
+	conn.write(query_to_buf(q)) or { return error('could not send UDP query') }
 
-	//mut buf := []u8{len: 512}
 	res, _ := conn.read(mut buf) or { return error('Cannot read from buffer') }
+
+	// Check for truncation, fallback to TCP
+	if is_truncated(buf) {
+		return query_tcp(q)
+	}
 
 	return parse_response(mut &buf, res)
 }
@@ -209,7 +259,7 @@ fn read_domain(buf []u8, start int) (string, int) {
 		}
 		else {
 			// @TODO: get rid of unsafe construct
-			assert pos + 1 + len <= 512
+			assert pos + 1 + len <= buf.len
 			unsafe {
 				s = s + buf[pos + 1].vstring_literal_with_len(len) + '.'
 			}
@@ -441,7 +491,7 @@ fn parse_response(mut buf []u8, bytes int) Response {
 				for {
 					txt_len := buf[rel_pos + 12]
 					txt_len_total = txt_len_total + 1 + txt_len
-					assert rel_pos + txt_len <= 512
+					assert rel_pos + txt_len <= buf.len
 					txt := read_fixed_len(buf, rel_pos + 13, txt_len)
 					record = record + txt
 
