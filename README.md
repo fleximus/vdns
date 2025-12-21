@@ -12,6 +12,7 @@ Supported query types:
 - [x] CERT
 - [x] CNAME
 - [x] DNSKEY
+- [x] IXFR (experimental)
 - [x] PTR
 - [x] MX
 - [x] NS

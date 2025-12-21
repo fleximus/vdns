@@ -85,7 +85,8 @@ pub:
 	type Type  = Type.a
 	class Class = Class.in
 	resolver string
-	tcp bool  // Force TCP transport
+	tcp bool    // Force TCP transport
+	serial u32  // Current SOA serial for IXFR queries
 }
 
 pub struct Answer {
@@ -130,6 +131,64 @@ fn query_to_buf_tcp(q Query) []u8 {
 fn is_truncated(buf []u8) bool {
 	flags := binary.big_endian_u16_at(buf, 2)
 	return (flags & 0x0200) != 0  // TC flag is bit 9
+}
+
+fn query_to_buf_ixfr(q Query) []u8 {
+	mut buf := []u8{len: 12}
+
+	// Header
+	binary.big_endian_put_u16_at(mut buf, q.transaction_id, 0)
+	binary.big_endian_put_u16_at(mut buf, u16(q.flags), 2)
+	binary.big_endian_put_u16_at(mut buf, 1, 4)   // questions = 1
+	binary.big_endian_put_u16_at(mut buf, 0, 6)   // answers = 0
+	binary.big_endian_put_u16_at(mut buf, 1, 8)   // auth_rrs = 1 (SOA)
+	binary.big_endian_put_u16_at(mut buf, 0, 10)  // additional = 0
+
+	// Question section
+	domain_encoded := str2dns(q.domain)
+	buf << domain_encoded
+	buf << [u8(0), 0, 0, 0]  // placeholder for type and class
+	question_end := 12 + domain_encoded.len
+	binary.big_endian_put_u16_at(mut buf, u16(Type.ixfr), question_end)
+	binary.big_endian_put_u16_at(mut buf, u16(q.class), question_end + 2)
+
+	// Authority section - SOA record
+	// Name (compressed pointer to question domain at offset 12)
+	buf << [u8(0xc0), 0x0c]
+	// Type = SOA (6)
+	buf << [u8(0), 6]
+	// Class = IN (1)
+	buf << [u8(0), 1]
+	// TTL = 0
+	buf << [u8(0), 0, 0, 0]
+
+	// RDATA for minimal SOA (server only needs serial)
+	mut rdata := []u8{}
+	rdata << 0  // MNAME = "." (root)
+	rdata << 0  // RNAME = "." (root)
+	// Serial (4 bytes)
+	mut serial_buf := []u8{len: 4}
+	binary.big_endian_put_u32_at(mut serial_buf, q.serial, 0)
+	rdata << serial_buf
+	// Refresh, Retry, Expire, Minimum (4 bytes each, can be 0)
+	rdata << [u8(0), 0, 0, 0]  // Refresh
+	rdata << [u8(0), 0, 0, 0]  // Retry
+	rdata << [u8(0), 0, 0, 0]  // Expire
+	rdata << [u8(0), 0, 0, 0]  // Minimum
+
+	// RDLENGTH (2 bytes)
+	buf << [u8(0), u8(rdata.len)]
+	buf << rdata
+
+	return buf
+}
+
+fn query_to_buf_ixfr_tcp(q Query) []u8 {
+	dns_msg := query_to_buf_ixfr(q)
+	mut buf := []u8{len: 2}
+	binary.big_endian_put_u16_at(mut buf, u16(dns_msg.len), 0)
+	buf << dns_msg
+	return buf
 }
 
 fn query_tcp(q Query) !Response {
@@ -205,6 +264,53 @@ fn query_axfr(q Query) !Response {
 	return Response{answers: all_answers}
 }
 
+fn query_ixfr(q Query) !Response {
+	mut conn := net.dial_tcp(q.resolver) or { return error('could not dial TCP: ${err}') }
+	defer {
+		conn.close() or {}
+	}
+
+	conn.write(query_to_buf_ixfr_tcp(q)) or { return error('could not send IXFR query') }
+
+	mut all_answers := []Answer{}
+	mut soa_count := 0
+
+	for {
+		// Read 2-byte length prefix
+		mut len_buf := []u8{len: 2}
+		conn.read(mut len_buf) or { break }
+		msg_len := binary.big_endian_u16_at(len_buf, 0)
+		if msg_len == 0 {
+			break
+		}
+
+		// Read full DNS message
+		mut buf := []u8{}
+		mut remaining := int(msg_len)
+		for remaining > 0 {
+			mut chunk := []u8{len: remaining}
+			n := conn.read(mut chunk) or { break }
+			buf << chunk[..n]
+			remaining -= n
+		}
+
+		// Parse and collect answers
+		response := parse_response(mut &buf, int(msg_len))
+		for answer in response.answers {
+			all_answers << answer
+			if answer.type == .soa {
+				soa_count++
+				if soa_count >= 2 {
+					// Closing SOA received, transfer complete
+					return Response{answers: all_answers}
+				}
+			}
+		}
+	}
+
+	return Response{answers: all_answers}
+}
+
 fn query_to_string(query Query) string {
 	q := query.transaction_id.str() + query.flags.str()
 
@@ -229,6 +335,11 @@ pub fn query(q Query) !Response {
 	// AXFR requires special handling (multiple messages)
 	if q.type == .axfr {
 		return query_axfr(q)
+	}
+
+	// IXFR requires SOA in authority section
+	if q.type == .ixfr {
+		return query_ixfr(q)
 	}
 
 	// If explicit TCP requested, use TCP directly
